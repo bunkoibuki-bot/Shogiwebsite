@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>将棋の世界 | Shogi Studio</title>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700&family=M+PLUS+Rounded+1c:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f7f0e8;
+      --ink: #1e1610;
+      --accent: #d45f34;
+      --accent-2: #3d6b63;
+      --wood: #e4caa4;
+      --board-dark: #d9b782;
+      --line: #b1813d;
+      --shadow: rgba(26, 13, 4, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "M PLUS Rounded 1c", "Shippori Mincho B1", system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at 15% 20%, rgba(212, 95, 52, 0.12), transparent 35%),
+                  radial-gradient(circle at 80% 10%, rgba(61, 107, 99, 0.12), transparent 40%),
+                  linear-gradient(135deg, #f9f2e8 0%, #f1e5d4 100%);
+      min-height: 100vh;
+      padding: 36px 18px 72px;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image: repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.03) 0, rgba(0, 0, 0, 0.03) 1px, transparent 1px, transparent 10px),
+                        repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.02) 0, rgba(0, 0, 0, 0.02) 1px, transparent 1px, transparent 14px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, rgba(212, 95, 52, 0.12), rgba(61, 107, 99, 0.12)), rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 18px;
+      padding: 46px 48px;
+      box-shadow: 0 16px 60px rgba(0, 0, 0, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(212, 95, 52, 0.35), transparent 60%);
+      top: -60px;
+      right: -60px;
+      filter: blur(16px);
+      opacity: 0.5;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, 1.05fr) minmax(260px, 0.95fr);
+      gap: 26px;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-visual {
+      position: relative;
+      isolation: isolate;
+    }
+
+    .hero-visual .main {
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.16);
+      transform: translateY(6px);
+      border: 4px solid #fdf8f2;
+      background: #fff;
+    }
+
+    .hero-visual img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .hero-stack {
+      position: absolute;
+      inset: auto  -14% -16% auto;
+      width: 55%;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+      border: 3px solid #fff7ec;
+      transform: rotate(-3deg);
+    }
+
+    .hero-note {
+      position: absolute;
+      top: 10px;
+      left: -6px;
+      background: #fff7ec;
+      padding: 8px 12px;
+      border-radius: 999px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.1);
+      font-weight: 700;
+      color: #8a4c2a;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      transform: rotate(-2deg);
+    }
+
+    .eyebrow {
+      font-size: 0.95rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-2);
+      font-weight: 600;
+      margin: 0 0 14px;
+    }
+
+    h1 {
+      font-family: "Shippori Mincho B1", "M PLUS Rounded 1c", serif;
+      font-weight: 700;
+      font-size: clamp(2.2rem, 5vw, 3.3rem);
+      margin: 0 0 18px;
+      line-height: 1.2;
+    }
+
+    .hero p.lede {
+      max-width: 720px;
+      font-size: 1.1rem;
+      margin: 0 0 22px;
+      color: #3d2c21;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      border-radius: 999px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      text-decoration: none;
+      transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 12px 30px rgba(212, 95, 52, 0.25);
+    }
+
+    .btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 36px rgba(212, 95, 52, 0.32);
+    }
+
+    .btn.ghost {
+      border-color: rgba(0, 0, 0, 0.1);
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .hero-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .tag {
+      background: rgba(0, 0, 0, 0.04);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 600;
+      color: #3d3028;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+    }
+
+    .section {
+      margin-top: 46px;
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: clamp(1.6rem, 3vw, 2.1rem);
+      font-family: "Shippori Mincho B1", "M PLUS Rounded 1c", serif;
+    }
+
+    .section p.description {
+      margin: 0 0 24px;
+      color: #4a3a30;
+      max-width: 760px;
+    }
+
+    .board-area {
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 18px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+      padding: 28px;
+    }
+
+    .board-layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 1.4fr) 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .board-wrap {
+      position: relative;
+      padding: 18px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(223, 191, 140, 0.28), rgba(232, 205, 163, 0.2));
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+    }
+
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 3px;
+      aspect-ratio: 1 / 1;
+      background: linear-gradient(135deg, #f5e2c2, #ebd2a6);
+      border-radius: 14px;
+      border: 3px solid var(--line);
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .square {
+      position: relative;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      display: grid;
+      place-items: center;
+      background: var(--wood);
+      padding: 4px;
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+      cursor: pointer;
+      font-family: "Shippori Mincho B1", "M PLUS Rounded 1c", serif;
+      font-size: clamp(1rem, 2vw, 1.4rem);
+      color: #2d1f16;
+      border-radius: 6px;
+    }
+
+    .square[data-dark="true"] {
+      background: var(--board-dark);
+    }
+
+    .square:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+    }
+
+    .square.active {
+      box-shadow: inset 0 0 0 2px var(--accent), 0 10px 24px rgba(212, 95, 52, 0.2);
+      background: #f9e9cb;
+    }
+
+    .square .piece {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .piece[data-owner="gote"] {
+      transform: rotate(180deg);
+    }
+
+    .board-legend {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+      color: #5b473b;
+    }
+
+    .board-legend span {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .side-panel {
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 14px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 18px 18px 12px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.06);
+    }
+
+    .side-panel h3 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+      font-family: "Shippori Mincho B1", "M PLUS Rounded 1c", serif;
+    }
+
+    .list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 14px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .list li {
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 10px;
+      padding: 10px 12px;
+      border: 1px solid rgba(0, 0, 0, 0.03);
+      color: #403126;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      background: var(--accent);
+      border-radius: 999px;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 4px rgba(212, 95, 52, 0.16);
+    }
+
+    .selection-box {
+      background: linear-gradient(135deg, rgba(212, 95, 52, 0.08), rgba(61, 107, 99, 0.08));
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .selection-box strong {
+      color: var(--accent);
+    }
+
+    .btn.small {
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      margin-top: 10px;
+      background: #fff;
+      border-color: rgba(0, 0, 0, 0.08);
+      color: var(--ink);
+      box-shadow: none;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 14px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      padding: 18px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.06);
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 1.1rem;
+      font-family: "Shippori Mincho B1", "M PLUS Rounded 1c", serif;
+    }
+
+    .card p {
+      margin: 0 0 10px;
+      color: #4b382c;
+      line-height: 1.5;
+    }
+
+    .card ul {
+      margin: 0;
+      padding-left: 18px;
+      color: #4b382c;
+      line-height: 1.5;
+    }
+
+    .gallery {
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 16px;
+      padding: 22px;
+      box-shadow: 0 14px 44px rgba(0, 0, 0, 0.06);
+    }
+
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .gallery-card {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      background: #fff;
+    }
+
+    .gallery-card img {
+      width: 100%;
+      height: 210px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gallery-card figcaption {
+      position: absolute;
+      inset: auto 0 0 0;
+      padding: 10px 12px;
+      background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55));
+      color: #fff;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .gallery-note {
+      margin-top: 8px;
+      color: #5b473b;
+      font-size: 0.95rem;
+    }
+
+    .openings {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+    }
+
+    .opening-card {
+      background: linear-gradient(145deg, rgba(212, 95, 52, 0.08), rgba(212, 95, 52, 0));
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.06);
+    }
+
+    .opening-card h4 {
+      margin: 0 0 8px;
+      font-size: 1.05rem;
+    }
+
+    .opening-card .label {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(61, 107, 99, 0.16);
+      color: #2b4a43;
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+
+    .practice {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .practice-step {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.03);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.04);
+      color: #423228;
+      font-weight: 600;
+    }
+
+    .badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 12px;
+      background: var(--accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      box-shadow: 0 10px 24px rgba(212, 95, 52, 0.22);
+      flex-shrink: 0;
+    }
+
+    footer {
+      margin-top: 34px;
+      text-align: center;
+      color: #6b5445;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 960px) {
+      .hero {
+        padding: 42px 32px;
+      }
+
+      .hero-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-stack {
+        inset: auto 8% -12% auto;
+        width: 58%;
+      }
+
+      .board-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 24px 14px 64px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .gallery-card img {
+        height: 180px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-grid">
+        <div class="hero-content">
+          <p class="eyebrow">Shogi Journey</p>
+          <h1>将棋の世界へようこそ</h1>
+          <p class="lede">静かな木の香りと駒音をイメージしたシングルページ。盤を触り、手筋を眺め、練習ルーチンをそのまま真似できるコンパクトな将棋サイトです。</p>
+          <div class="hero-actions">
+            <a class="btn primary" href="#gallery">写真を見る</a>
+            <a class="btn ghost" href="#board">盤に触れる</a>
+          </div>
+          <div class="hero-meta">
+            <div class="tag">9×9 木目の盤</div>
+            <div class="tag">持ち駒を打つ楽しさ</div>
+            <div class="tag">初心者〜中級の導線</div>
+          </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+          <div class="hero-note">盤の木肌</div>
+          <div class="main">
+            <img src="assets/shogi1.jpg" alt="木目の将棋盤と駒のクローズアップ">
+          </div>
+          <div class="hero-stack">
+            <img src="assets/shogi3.jpg" alt="">
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="section gallery" id="gallery">
+      <p class="eyebrow">Gallery</p>
+      <h2>盤上の空気を切り取った5枚</h2>
+      <p class="description">木肌、駒音、対局の集中力。雰囲気をつかめる写真をピックアップしました。クリックで拡大は不要な軽量レイアウトです。</p>
+      <div class="gallery-grid">
+        <figure class="gallery-card">
+          <img src="assets/shogi1.jpg" alt="木目の将棋盤と駒のクローズアップ">
+          <figcaption>木肌と駒の質感</figcaption>
+        </figure>
+        <figure class="gallery-card">
+          <img src="assets/shogi2.jpg" alt="対局中の将棋盤と駒配置">
+          <figcaption>中盤戦の盤面</figcaption>
+        </figure>
+        <figure class="gallery-card">
+          <img src="assets/shogi3.jpg" alt="将棋盤と駒台が並ぶ様子">
+          <figcaption>駒台と持ち駒</figcaption>
+        </figure>
+        <figure class="gallery-card">
+          <img src="assets/shogi4.jpg" alt="対局イベントの将棋盤">
+          <figcaption>大会の空気感</figcaption>
+        </figure>
+        <figure class="gallery-card">
+          <img src="assets/shogi5.jpg" alt="浮世絵風の将棋対局">
+          <figcaption>文化としての将棋</figcaption>
+        </figure>
+      </div>
+      <p class="gallery-note">出典: Wikimedia Commons（CC BY-SA / Public Domain）</p>
+    </section>
+
+    <section class="section board-area" id="board">
+      <div class="section-head">
+        <p class="eyebrow">Board</p>
+        <h2>木の温度を感じるサンプル盤</h2>
+        <p class="description">初期配置の駒をクリックして座標と陣営を確認。盤面の目線移動や「駒を打つ」感覚をイメージしやすい、ゆったりとしたウッドトーンでまとめています。</p>
+      </div>
+      <div class="board-layout">
+        <div class="board-wrap">
+          <div class="board-legend">
+            <span>先手: 正位置</span>
+            <span>後手: 反転表示</span>
+          </div>
+          <div class="board-grid" id="shogi-board" role="grid" aria-label="将棋盤 9x9"></div>
+        </div>
+        <aside class="side-panel">
+          <h3>注目ポイント</h3>
+          <ul class="list">
+            <li><span class="dot"></span>王を囲う陣形で守りを整える</li>
+            <li><span class="dot"></span>飛・角はラインを活かし、歩で呼吸を確保</li>
+            <li><span class="dot"></span>持ち駒は終盤の一手逆転の種</li>
+          </ul>
+          <div class="selection-box" id="selection-output">
+            盤面のマスをクリックすると座標と駒情報が表示されます。
+          </div>
+          <button class="btn small" id="clear-selection" type="button">ハイライトをリセット</button>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="basics">
+      <p class="eyebrow">Basics</p>
+      <h2>シンプルにおさえる基本</h2>
+      <p class="description">駒の動きと勝敗条件だけ覚えれば、あとは指しながら自然と身につきます。まずはこの3点から。</p>
+      <div class="info-grid">
+        <div class="card">
+          <h3>勝利条件</h3>
+          <p>相手玉（王）に逃げ道のない「詰み」を作れば勝ち。自玉の安全と攻め駒の両立がカギです。</p>
+          <ul>
+            <li>玉を包む「囲い」を意識する</li>
+            <li>利きを重ねて逃げ道を塞ぐ</li>
+            <li>詰まなければ持将棋・千日手もあり</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>駒の動き</h3>
+          <p>歩・香・桂・銀・金・角・飛・玉の8種類。成ると動きが変化し、終盤の粘りを生みます。</p>
+          <ul>
+            <li>飛は縦横に伸び、角は斜めに伸びる</li>
+            <li>金の動き＝攻め守りの基本形</li>
+            <li>成りは敵陣3段に入ったときの特権</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>持ち駒と「打つ」</h3>
+          <p>取った駒は自陣の味方として再利用できます。唯一無二の将棋らしさで、逆転の余地を広げます。</p>
+          <ul>
+            <li>二歩禁止・打ち歩詰め禁止に注意</li>
+            <li>守りの金銀を手持ちにすると心強い</li>
+            <li>終盤は「捨て駒」で寄せ筋を作る</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <p class="eyebrow">Openings</p>
+      <h2>序盤の型で迷わない</h2>
+      <p class="description">よく指される3つのスタイルを短く紹介。盤面を眺めながら、好みの構えを1つ選んで真似してみましょう。</p>
+      <div class="openings">
+        <div class="opening-card">
+          <div class="label">矢倉</div>
+          <h4>重厚な守りからカウンター</h4>
+          <p>金銀4枚で玉を固め、攻めは腰掛け銀。じっくり組んでから一気に開戦する王道型。</p>
+        </div>
+        <div class="opening-card">
+          <div class="label">角換わり</div>
+          <h4>テンポ勝負の速攻派</h4>
+          <p>序盤で角を交換し、飛先を伸ばして主導権を握る。細かい手筋で形勢をリードします。</p>
+        </div>
+        <div class="opening-card">
+          <div class="label">四間飛車</div>
+          <h4>バランス良い振り飛車</h4>
+          <p>飛車を4筋に振って玉を美濃囲いに。攻守の切り替えがスムーズで、初めての振り飛車に最適。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <p class="eyebrow">Practice</p>
+      <h2>10分でできる練習ルーチン</h2>
+      <p class="description">短時間でも積み上がる流れを用意しました。盤と持ち駒の両方を意識して、リズム良く回してみてください。</p>
+      <div class="practice">
+        <div class="practice-step">
+          <div class="badge">1</div>
+          序盤の型を一つ選び、10手だけ並べる（呼吸点を確認）
+        </div>
+        <div class="practice-step">
+          <div class="badge">2</div>
+          簡単な3手詰を3題解く（駒の利きを素早く読む訓練）
+        </div>
+        <div class="practice-step">
+          <div class="badge">3</div>
+          実戦でよく出る金銀の受け方を盤上で復習（囲いを崩さない）
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      木の香りを思い浮かべながら、今日も一手。Good move!
+    </footer>
+  </div>
+
+  <script>
+    const boardEl = document.getElementById("shogi-board");
+    const selectionEl = document.getElementById("selection-output");
+    const resetBtn = document.getElementById("clear-selection");
+    const pieceNames = {
+      "歩": "歩兵",
+      "香": "香車",
+      "桂": "桂馬",
+      "銀": "銀将",
+      "金": "金将",
+      "角": "角行",
+      "飛": "飛車",
+      "王": "王将",
+      "玉": "玉将"
+    };
+
+    const initialBoard = [
+      [
+        { piece: "香", owner: "gote" }, { piece: "桂", owner: "gote" }, { piece: "銀", owner: "gote" },
+        { piece: "金", owner: "gote" }, { piece: "玉", owner: "gote" }, { piece: "金", owner: "gote" },
+        { piece: "銀", owner: "gote" }, { piece: "桂", owner: "gote" }, { piece: "香", owner: "gote" }
+      ],
+      [
+        null, { piece: "角", owner: "gote" }, null, null, null, null, null, { piece: "飛", owner: "gote" }, null
+      ],
+      Array.from({ length: 9 }, () => ({ piece: "歩", owner: "gote" })),
+      Array(9).fill(null),
+      Array(9).fill(null),
+      Array(9).fill(null),
+      Array.from({ length: 9 }, () => ({ piece: "歩", owner: "sente" })),
+      [
+        null, { piece: "飛", owner: "sente" }, null, null, null, null, null, { piece: "角", owner: "sente" }, null
+      ],
+      [
+        { piece: "香", owner: "sente" }, { piece: "桂", owner: "sente" }, { piece: "銀", owner: "sente" },
+        { piece: "金", owner: "sente" }, { piece: "王", owner: "sente" }, { piece: "金", owner: "sente" },
+        { piece: "銀", owner: "sente" }, { piece: "桂", owner: "sente" }, { piece: "香", owner: "sente" }
+      ]
+    ];
+
+    let activeSquare = null;
+
+    const createSquare = (cell, row, col) => {
+      const square = document.createElement("button");
+      square.className = "square";
+      square.setAttribute("role", "gridcell");
+      square.setAttribute("aria-label", `列${9 - col} 段${row + 1}`);
+      square.dataset.dark = (row + col) % 2 === 1 ? "true" : "false";
+
+      const piece = document.createElement("span");
+      piece.className = "piece";
+      if (cell) {
+        piece.textContent = cell.piece;
+        piece.dataset.owner = cell.owner;
+        piece.title = `${pieceNames[cell.piece]} / ${cell.owner === "sente" ? "先手" : "後手"}`;
+      } else {
+        piece.textContent = "";
+      }
+      square.appendChild(piece);
+
+      square.addEventListener("click", () => selectSquare(square, cell, row, col));
+      return square;
+    };
+
+    const selectSquare = (square, cell, row, col) => {
+      if (activeSquare) activeSquare.classList.remove("active");
+      activeSquare = square;
+      square.classList.add("active");
+
+      const file = 9 - col;
+      const rank = row + 1;
+      if (cell) {
+        const side = cell.owner === "sente" ? "先手" : "後手";
+        const label = pieceNames[cell.piece] || cell.piece;
+        selectionEl.innerHTML = `<strong>${file}筋 ${rank}段</strong> / ${side}の${label}`;
+      } else {
+        selectionEl.innerHTML = `<strong>${file}筋 ${rank}段</strong> / ここは空きマス`;
+      }
+    };
+
+    const renderBoard = () => {
+      initialBoard.forEach((row, r) => {
+        row.forEach((cell, c) => {
+          const square = createSquare(cell, r, c);
+          boardEl.appendChild(square);
+        });
+      });
+    };
+
+    resetBtn.addEventListener("click", () => {
+      if (activeSquare) activeSquare.classList.remove("active");
+      activeSquare = null;
+      selectionEl.textContent = "盤面のマスをクリックすると座標と駒情報が表示されます。";
+    });
+
+    renderBoard();
+  </script>
+</body>
+</html>
